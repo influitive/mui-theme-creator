@@ -3,12 +3,12 @@ import { verbose } from "src/utils"
 
 /**
  * When the Code Editor is saved, the editor checks for errors and transpiles the code.
- * `parseThemeString` takes the output text of the emitted files from 
+ * `parseThemeString` takes the output text of the emitted files from
  * `monaco.languages.typescript.EmitOutput`, formats in, and
  * uses JSON5 to parse the string into an object.
- * 
- * 
- * The `code` parameter should look similar to the following
+ *
+ *
+ * When `compiled == true`, the `code` parameter should look similar to the following
  * ```js
  * `"use strict";
  *  Object.defineProperty(exports, "__esModule", { value: true });
@@ -22,12 +22,32 @@ import { verbose } from "src/utils"
  *        main: '#f50057',
  *      },
  *    },
-  * };`
-```
- * @param code 
+ *  };`
+ * ```
+ *
+ * When `compiled == false`, the `code` parameter should look similar to
+ * the following:
+ * ```ts
+ * `import { ThemeOptions } from '@material-ui/core/styles/createMuiTheme';
+ *
+ *  export const themeOptions: ThemeOptions = {
+ *    palette: {
+ *      type: 'light',
+ *      primary: {
+ *        main: '#3f51b5',
+ *      },
+ *      secondary: {
+ *        main: '#f50057',
+ *      },
+ *    },
+ *  };`
+ * ```
+ *
+ * @param code
+ * @param compiled
  */
-export function parseEditorOutput(code: string) {
-  const trimmedCode = trimCode(code)
+export function parseEditorOutput(code: string, compiled = true) {
+  const trimmedCode = trimCode(code, compiled)
   try {
     return JSON5.parse(trimmedCode)
   } catch (err) {
@@ -40,7 +60,7 @@ export function parseEditorOutput(code: string) {
  * Trim the unimportant lines of code from the string not relevant to the
  * theme options
  *
- * Example:
+ * Example with `compiled = true`:
  * ```js
  * `"use strict";
  *  Object.defineProperty(exports, "__esModule", { value: true });
@@ -57,13 +77,37 @@ export function parseEditorOutput(code: string) {
  *    ...
  *  }`
  * ```
+ *
+ * Example with `compiled = false`:
+ * ```ts
+ * `import { ThemeOptions } from '@material-ui/core/styles/createMuiTheme';
+ *
+ *  export const themeOptions: ThemeOptions = {
+ *    palette: ...,
+ *     ...
+ *  };`
+ * ```
+ * Becomes ->
+ * ```ts
+ * `{
+ *    palette: ...,
+ *    ...
+ *  }`
+ * ```
+ *
  * @param code
+ * @param compiled
  */
-export function trimCode(code: string) {
+export function trimCode(code: string, compiled = true) {
   let codeLines = code.split("\n")
 
   // remove top two lines
-  codeLines = codeLines.slice(2)
+  const startLine = compiled
+    ? codeLines.findIndex(_ => _.startsWith("exports.themeOptions ="))
+    : codeLines.findIndex(_ =>
+        _.startsWith("export const themeOptions: ThemeOptions =")
+      )
+  codeLines = codeLines.slice(startLine)
 
   // replace exports.themeOptions with open bracket for object
   codeLines[0] = "{" // editor disables editing this line

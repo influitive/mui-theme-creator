@@ -19,6 +19,7 @@ import { RootState } from "src/state/types"
 import { useCanSave } from "src/state/selectors"
 import Alert from "@material-ui/lab/Alert"
 import EditorButton from "./EditorSettings"
+import { parseEditorOutput } from "src/state/editor/parser"
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -82,25 +83,15 @@ export default EditorControls
 
 const CopyButton = ({}) => {
   const themeInput = useSelector((state: RootState) => state.editor.themeInput)
-  const outputTypescript = useSelector(
-    (state: RootState) => state.editor.outputTypescript
-  )
   const [open, setOpen] = useState(false)
   const copyToClipboard = () => {
-    let codeToCopy = themeInput
-    if (!outputTypescript) {
-      // naively strip out typescript (first three lines)
-      codeToCopy = [
-        `export const themeOptions = {`,
-        ...themeInput.split("\n").slice(3),
-      ].join("\n")
-    }
+    const codeToCopy = JSON.stringify(parseEditorOutput(themeInput, false))
     navigator.clipboard.writeText(codeToCopy).then(() => setOpen(true))
   }
 
   return (
     <>
-      <Tooltip title="Copy theme code">
+      <Tooltip title="Copy theme JSON config">
         <IconButton color="primary" onClick={copyToClipboard}>
           <FileCopyIcon />
         </IconButton>
@@ -112,7 +103,7 @@ const CopyButton = ({}) => {
         onClose={() => setOpen(false)}
       >
         <Alert variant="filled" severity="success">
-          Copied theme code to clipboard!
+          Copied theme JSON to clipboard!
         </Alert>
       </Snackbar>
     </>
